@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>记账 & 工作量</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f5f6fa; max-width:500px; margin:0 auto; padding:10px; }
+        .tab-bar { display:flex; background:#fff; border-radius:12px; overflow:hidden; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .tab { flex:1; text-align:center; padding:12px; font-weight:600; color:#888; cursor:pointer; border-bottom:3px solid transparent; }
+        .tab.active { color:#4a6cf7; border-bottom-color:#4a6cf7; }
+        .content { display:none; }
+        .content.active { display:block; }
+        .card { background:#fff; border-radius:12px; padding:15px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .form-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+        .form-row label { font-size:14px; color:#555; width:60px; line-height:38px; }
+        input, select { flex:1; min-width:80px; height:38px; border:1px solid #ddd; border-radius:8px; padding:0 10px; font-size:16px; background:#fafafa; }
+        input[type="number"] { -moz-appearance:textfield; }
+        input[type="date"] { min-width:140px; }
+        button { background:#4a6cf7; color:white; border:none; border-radius:8px; padding:10px 16px; font-size:16px; cursor:pointer; width:100%; font-weight:600; }
+        button.secondary { background:#eee; color:#333; width:auto; }
+        .btn-group { display:flex; gap:8px; }
+        .summary { text-align:center; font-weight:bold; margin:10px 0; font-size:16px; }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { padding:8px 6px; text-align:center; border-bottom:1px solid #eee; }
+        th { background:#f9fafb; color:#555; font-weight:600; }
+        .delete-btn { background:#ff4d4d; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; }
+        .filter-bar { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+        canvas { max-width:100%; margin-top:10px; }
+        .footer { text-align:center; font-size:12px; color:#aaa; margin-top:20px; }
+    </style>
+</head>
+<body>
+
+<div class="tab-bar">
+    <div class="tab active" onclick="switchTab('account')">💰 记账</div>
+    <div class="tab" onclick="switchTab('work')">🏥 工作量</div>
+</div>
+
+<!-- 记账模块 -->
+<div id="account" class="content active">
+    <div class="card">
+        <div class="filter-bar">
+            <label>月份：</label>
+            <select id="accMonthFilter" onchange="renderAccount()"></select>
+            <button class="secondary" onclick="showAccountChart()" style="width:auto;">📊 图表</button>
+        </div>
+        <div class="form-row">
+            <label>日期</label>
+            <input type="date" id="accDate">
+        </div>
+        <div class="form-row">
+            <label>类型</label>
+            <select id="accType"><option value="收入">收入</option><option value="支出" selected>支出</option></select>
+        </div>
+        <div class="form-row">
+            <label>金额</label>
+            <input type="number" id="accAmount" placeholder="0.00" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-row">
+            <label>备注</label>
+            <input type="text" id="accNote" placeholder="可选">
+        </div>
+        <button onclick="addAccount()">➕ 添加记账</button>
+        <div class="summary" id="accSummary"></div>
+        <table>
+            <thead><tr><th>日期</th><th>类型</th><th>金额</th><th>备注</th><th></th></tr></thead>
+            <tbody id="accTableBody"></tbody>
+        </table>
+        <div class="btn-group" style="margin-top:10px;">
+            <button class="secondary" onclick="exportCSV('account')">导出CSV</button>
+        </div>
+    </div>
+</div>
+
+<!-- 工作量模块 -->
+<div id="work" class="content">
+    <div class="card">
+        <div class="filter-bar">
+            <label>月份：</label>
+            <select id="workMonthFilter" onchange="renderWork()"></select>
+            <button class="secondary" onclick="showWorkChart()" style="width:auto;">📊 图表</button>
+        </div>
+        <div class="form-row">
+            <label>日期</label>
+            <input type="date" id="workDate">
+        </div>
+        <div class="form-row">
+            <label>项目</label>
+            <select id="workItem">
+                <option>门诊量</option>
+                <option>手术台数</option>
+                <option>检查人次</option>
+                <option>住院病人数</option>
+                <option>其他</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>数量</label>
+            <input type="number" id="workQty" placeholder="0" step="1" inputmode="numeric">
+        </div>
+        <div class="form-row">
+            <label>备注</label>
+            <input type="text" id="workNote" placeholder="可选">
+        </div>
+        <button onclick="addWork()">➕ 添加工作量</button>
+        <div class="summary" id="workSummary"></div>
+        <table>
+            <thead><tr><th>日期</th><th>项目</th><th>数量</th><th>备注</th><th></th></tr></thead>
+            <tbody id="workTableBody"></tbody>
+        </table>
+        <div class="btn-group" style="margin-top:10px;">
+            <button class="secondary" onclick="exportCSV('work')">导出CSV</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">数据保存在本机浏览器 | 一颗螺丝钉</div>
+
+<script>
+// ========== 数据存储 ==========
+let records = JSON.parse(localStorage.getItem('records')) || { account: [], work: [] };
+
+function save() {
+    localStorage.setItem('records', JSON.stringify(records));
+    updateFilters();
+    renderAccount();
+    renderWork();
+}
+
+function updateFilters() {
+    // 记账月份筛选
+    let accMonths = [...new Set(records.account.map(r => r.date.substring(0,7)))];
+    let accFilter = document.getElementById('accMonthFilter');
+    accFilter.innerHTML = '<option value="全部">全部月份</option>' + accMonths.sort().reverse().map(m => `<option value="${m}">${m}</option>`).join('');
+    // 恢复选中
+    let savedAcc = localStorage.getItem('accFilter') || '全部';
+    if ([...accFilter.options].some(o => o.value === savedAcc)) accFilter.value = savedAcc;
+    else accFilter.value = '全部';
+
+    // 工作量月份筛选
+    let workMonths = [...new Set(records.work.map(r => r.date.substring(0,7)))];
+    let workFilter = document.getElementById('workMonthFilter');
+    workFilter.innerHTML = '<option value="全部">全部月份</option>' + workMonths.sort().reverse().map(m => `<option value="${m}">${m}</option>`).join('');
+    let savedWork = localStorage.getItem('workFilter') || '全部';
+    if ([...workFilter.options].some(o => o.value === savedWork)) workFilter.value = savedWork;
+    else workFilter.value = '全部';
+}
+
+// ========== 记账模块 ==========
+document.getElementById('accDate').valueAsDate = new Date();
+document.getElementById('workDate').valueAsDate = new Date();
+
+function addAccount() {
+    const date = document.getElementById('accDate').value;
+    const type = document.getElementById('accType').value;
+    const amount = parseFloat(document.getElementById('accAmount').value);
+    const note = document.getElementById('accNote').value.trim();
+    if (!date || isNaN(amount) || amount <= 0) { alert('请填写有效日期和金额'); return; }
+    records.account.push({ date, type, amount, note });
+    document.getElementById('accAmount').value = '';
+    document.getElementById('accNote').value = '';
+    save();
+}
+
+function deleteAccount(index) {
+    // index是相对于筛选后的数组，需要找到实际索引
+    let filtered = getFilteredAccount();
+    let target = filtered[index];
+    let actualIdx = records.account.findIndex(r => r === target);
+    if (actualIdx > -1) records.account.splice(actualIdx, 1);
+    save();
+}
+
+function getFilteredAccount() {
+    let month = document.getElementById('accMonthFilter').value;
+    localStorage.setItem('accFilter', month);
+    let list = records.account;
+    if (month !== '全部') list = list.filter(r => r.date.startsWith(month));
+    return list;
+}
+
+function renderAccount() {
+    let list = getFilteredAccount();
+    let tbody = document.getElementById('accTableBody');
+    tbody.innerHTML = '';
+    let totalIncome = 0, totalExpense = 0;
+    list.forEach((r, i) => {
+        let tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.date}</td><td>${r.type}</td><td>${r.amount.toFixed(2)}</td><td>${r.note || ''}</td>
+        <td><button class="delete-btn" onclick="deleteAccount(${i})">删</button></td>`;
+        tbody.appendChild(tr);
+        if (r.type === '收入') totalIncome += r.amount; else totalExpense += r.amount;
+    });
+    document.getElementById('accSummary').textContent = `总收入: ${totalIncome.toFixed(2)} | 总支出: ${totalExpense.toFixed(2)} | 结余: ${(totalIncome-totalExpense).toFixed(2)}`;
+}
+
+// ========== 工作量模块 ==========
+function addWork() {
+    const date = document.getElementById('workDate').value;
+    const item = document.getElementById('workItem').value;
+    const qty = parseInt(document.getElementById('workQty').value);
+    const note = document.getElementById('workNote').value.trim();
+    if (!date || isNaN(qty) || qty <= 0) { alert('请填写有效日期和数量'); return; }
+    records.work.push({ date, item, quantity: qty, note });
+    document.getElementById('workQty').value = '';
+    document.getElementById('workNote').value = '';
+    save();
+}
+
+function deleteWork(index) {
+    let filtered = getFilteredWork();
+    let target = filtered[index];
+    let actualIdx = records.work.findIndex(r => r === target);
+    if (actualIdx > -1) records.work.splice(actualIdx, 1);
+    save();
+}
+
+function getFilteredWork() {
+    let month = document.getElementById('workMonthFilter').value;
+    localStorage.setItem('workFilter', month);
+    let list = records.work;
+    if (month !== '全部') list = list.filter(r => r.date.startsWith(month));
+    return list;
+}
+
+function renderWork() {
+    let list = getFilteredWork();
+    let tbody = document.getElementById('workTableBody');
+    tbody.innerHTML = '';
+    let summary = {};
+    list.forEach((r, i) => {
+        let tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.date}</td><td>${r.item}</td><td>${r.quantity}</td><td>${r.note || ''}</td>
+        <td><button class="delete-btn" onclick="deleteWork(${i})">删</button></td>`;
+        tbody.appendChild(tr);
+        summary[r.item] = (summary[r.item] || 0) + r.quantity;
+    });
+    let summaryText = Object.entries(summary).map(([k,v]) => `${k}: ${v}`).join(' | ');
+    document.getElementById('workSummary').textContent = summaryText ? `汇总: ${summaryText}` : '暂无数据';
+}
+
+// ========== 图表 ==========
+let currentChart = null;
+function showAccountChart() {
+    let list = getFilteredAccount();
+    let canvas = document.createElement('canvas');
+    let container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;';
+    let modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;padding:20px;width:90%;max-width:400px;';
+    modal.innerHTML = '<h3 style="text-align:center;margin-bottom:10px;">记账统计</h3><button style="margin-bottom:10px;" onclick="this.parentElement.parentElement.remove()">关闭</button>';
+    modal.appendChild(canvas);
+    container.appendChild(modal);
+    document.body.appendChild(container);
+    let ctx = canvas.getContext('2d');
+    let month = document.getElementById('accMonthFilter').value;
+    if (month === '全部') {
+        // 按月汇总
+        let months = {};
+        list.forEach(r => {
+            let m = r.date.substring(0,7);
+            if (!months[m]) months[m] = {收入:0,支出:0};
+            months[m][r.type] += r.amount;
+        });
+        let labels = Object.keys(months).sort();
+        let incomeData = labels.map(m => months[m].收入);
+        let expenseData = labels.map(m => months[m].支出);
+        currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [
+                { label: '收入', data: incomeData, backgroundColor: '#4CAF50' },
+                { label: '支出', data: expenseData, backgroundColor: '#f44336' }
+            ]},
+            options: { responsive: true }
+        });
+    } else {
+        let income = list.filter(r=>r.type==='收入').reduce((s,r)=>s+r.amount,0);
+        let expense = list.filter(r=>r.type==='支出').reduce((s,r)=>s+r.amount,0);
+        currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: ['收入','支出'], datasets: [{ data: [income, expense], backgroundColor: ['#4CAF50','#f44336'] }]},
+            options: { plugins:{legend:{display:false}}, responsive: true }
+        });
+    }
+    container.addEventListener('click', e => { if(e.target === container) container.remove(); });
+}
+
+function showWorkChart() {
+    let list = getFilteredWork();
+    let canvas = document.createElement('canvas');
+    let container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;';
+    let modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;padding:20px;width:90%;max-width:400px;';
+    modal.innerHTML = '<h3 style="text-align:center;margin-bottom:10px;">工作量统计</h3><button style="margin-bottom:10px;" onclick="this.parentElement.parentElement.remove()">关闭</button>';
+    modal.appendChild(canvas);
+    container.appendChild(modal);
+    document.body.appendChild(container);
+    let ctx = canvas.getContext('2d');
+    let month = document.getElementById('workMonthFilter').value;
+    if (month === '全部') {
+        let months = {};
+        list.forEach(r => {
+            let m = r.date.substring(0,7);
+            months[m] = (months[m] || 0) + r.quantity;
+        });
+        let labels = Object.keys(months).sort();
+        let data = labels.map(m => months[m]);
+        currentChart = new Chart(ctx, { type:'bar', data:{labels, datasets:[{label:'总量', data, backgroundColor:'#2196F3'}]}, options:{responsive:true} });
+    } else {
+        let items = {};
+        list.forEach(r => items[r.item] = (items[r.item]||0) + r.quantity);
+        let labels = Object.keys(items);
+        let data = labels.map(i => items[i]);
+        currentChart = new Chart(ctx, { type:'bar', data:{labels, datasets:[{label:'数量', data, backgroundColor:'#FF9800'}]}, options:{plugins:{legend:{display:false}}, responsive:true} });
+    }
+    container.addEventListener('click', e => { if(e.target === container) container.remove(); });
+}
+
+// ========== 导出CSV ==========
+function exportCSV(type) {
+    let list = type === 'account' ? getFilteredAccount() : getFilteredWork();
+    if (!list.length) { alert('没有数据可导出'); return; }
+    let headers = type === 'account' ? ['日期','类型','金额','备注'] : ['日期','项目','数量','备注'];
+    let csv = headers.join(',') + '\n';
+    list.forEach(r => {
+        let row = type === 'account' ? [r.date, r.type, r.amount, `"${r.note || ''}"`] : [r.date, r.item, r.quantity, `"${r.note || ''}"`];
+        csv += row.join(',') + '\n';
+    });
+    let blob = new Blob(["\uFEFF" + csv], {type:'text/csv;charset=utf-8;'});
+    let link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${type}_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+}
+
+// ========== 初始化 ==========
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((el, i) => {
+        el.classList.toggle('active', (tab === 'account' && i === 0) || (tab === 'work' && i === 1));
+    });
+    document.getElementById('account').classList.toggle('active', tab === 'account');
+    document.getElementById('work').classList.toggle('active', tab === 'work');
+}
+
+updateFilters();
+renderAccount();
+renderWork();
+</script>
+</body>
+</html>
