@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>创收记录</title>
+    <title>门诊工作记录</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
@@ -17,7 +17,7 @@
         .container { max-width: 600px; margin: 0 auto; padding: 15px; }
 
         .header {
-            background: #2196F3;
+            background: #2E7D32;
             color: white;
             padding: 20px;
             border-radius: 0 0 16px 16px;
@@ -55,7 +55,7 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .tab.active { background: #2196F3; color: white; }
+        .tab.active { background: #2E7D32; color: white; }
 
         .card {
             background: white;
@@ -67,7 +67,7 @@
         .card h3 {
             font-size: 17px;
             margin-bottom: 12px;
-            border-left: 4px solid #2196F3;
+            border-left: 4px solid #2E7D32;
             padding-left: 10px;
         }
 
@@ -78,7 +78,7 @@
             font-size: 16px; border: 1px solid #ddd; border-radius: 8px;
             outline: none; -webkit-appearance: none; background: white;
         }
-        .input-row input:focus, .input-row select:focus { border-color: #2196F3; }
+        .input-row input:focus, .input-row select:focus { border-color: #2E7D32; }
 
         .btn {
             display: block; width: 100%; padding: 14px; font-size: 17px;
@@ -88,7 +88,7 @@
         .btn:active { transform: scale(0.97); }
         .btn-primary { background: #4CAF50; color: white; }
         .btn-danger { background: #f44336; color: white; }
-        .btn-secondary { background: #2196F3; color: white; }
+        .btn-secondary { background: #2E7D32; color: white; }
         .btn-sm {
             padding: 6px 12px; font-size: 13px; border-radius: 6px;
             width: auto; display: inline-block; margin-top: 0;
@@ -99,7 +99,7 @@
 
         .summary { display: flex; justify-content: space-around; text-align: center; margin: 15px 0; }
         .summary-item { flex: 1; }
-        .summary-number { font-size: 24px; font-weight: bold; color: #2196F3; }
+        .summary-number { font-size: 24px; font-weight: bold; color: #2E7D32; }
         .summary-label { font-size: 12px; color: #888; }
 
         .list-item {
@@ -136,7 +136,6 @@
             color: #2e7d32; margin-bottom: 15px;
         }
 
-        /* 保存成功提示 */
         .toast {
             position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
             background: #4CAF50; color: white; padding: 12px 25px;
@@ -156,11 +155,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏥 医院创收记录</h1>
-            <p>手机直接记录，数据保存在本地</p>
+            <h1>📋 门诊工作记录</h1>
+            <p>手机记录，数据本地保存，免注册免登录</p>
         </div>
 
-        <!-- 数据状态指示 -->
         <div class="data-status" id="dataStatus">正在读取数据...</div>
 
         <div class="toolbar">
@@ -175,15 +173,15 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" data-tab="income">💰 创收</div>
+            <div class="tab active" data-tab="income">💼 业务记录</div>
             <div class="tab" data-tab="workload">📊 工作量</div>
-            <div class="tab" data-tab="account">📒 记账</div>
+            <div class="tab" data-tab="account">📒 收支</div>
         </div>
 
-        <!-- 创收 -->
+        <!-- ========== 业务记录 ========== -->
         <div class="tab-content active" id="tab-income">
             <div class="card">
-                <h3>添加病人创收</h3>
+                <h3>添加业务记录</h3>
                 <div class="input-row"><label>日期</label><input type="date" id="inc-date"></div>
                 <div class="input-row">
                     <label>项目</label>
@@ -196,15 +194,15 @@
                         <option value="其他">其他</option>
                     </select>
                 </div>
-                <div class="input-row"><label>金额</label><input type="number" id="inc-amount" inputmode="numeric" placeholder="输入收入金额" min="0" step="0.01"></div>
-                <div class="input-row"><label>病人</label><input type="text" id="inc-patient" placeholder="姓名或编号（可选）"></div>
+                <div class="input-row"><label>金额</label><input type="number" id="inc-amount" inputmode="numeric" placeholder="输入金额" min="0" step="0.01"></div>
+                <div class="input-row"><label>对象</label><input type="text" id="inc-patient" placeholder="姓名或编号（可选）"></div>
                 <button class="btn btn-primary" onclick="addIncome()">➕ 添加记录</button>
             </div>
             <div class="card">
                 <h3>汇总与记录</h3>
                 <div class="summary">
-                    <div class="summary-item"><div class="summary-number" id="today-income-total">0</div><div class="summary-label">今日创收总额</div></div>
-                    <div class="summary-item"><div class="summary-number" id="today-income-count">0</div><div class="summary-label">今日病人数</div></div>
+                    <div class="summary-item"><div class="summary-number" id="today-income-total">0</div><div class="summary-label">今日金额</div></div>
+                    <div class="summary-item"><div class="summary-number" id="today-income-count">0</div><div class="summary-label">今日笔数</div></div>
                 </div>
                 <div class="filter-row">
                     <span>筛选月份：</span>
@@ -214,7 +212,7 @@
             </div>
         </div>
 
-        <!-- 工作量 -->
+        <!-- ========== 工作量 ========== -->
         <div class="tab-content" id="tab-workload">
             <div class="card">
                 <h3>添加工作量</h3>
@@ -244,10 +242,10 @@
             </div>
         </div>
 
-        <!-- 记账 -->
+        <!-- ========== 收支 ========== -->
         <div class="tab-content" id="tab-account">
             <div class="card">
-                <h3>添加记账</h3>
+                <h3>添加收支记录</h3>
                 <div class="input-row"><label>日期</label><input type="date" id="acc-date"></div>
                 <div class="input-row">
                     <label>类型</label>
@@ -258,10 +256,10 @@
                 </div>
                 <div class="input-row"><label>金额</label><input type="number" id="acc-amount" inputmode="numeric" placeholder="金额" min="0" step="0.01"></div>
                 <div class="input-row"><label>备注</label><input type="text" id="acc-note" placeholder="可选"></div>
-                <button class="btn btn-primary" onclick="addAccount()">➕ 添加记账</button>
+                <button class="btn btn-primary" onclick="addAccount()">➕ 添加记录</button>
             </div>
             <div class="card">
-                <h3>记账汇总</h3>
+                <h3>收支汇总</h3>
                 <div class="summary">
                     <div class="summary-item"><div class="summary-number" id="acc-total-income">0</div><div class="summary-label">总收入</div></div>
                     <div class="summary-item"><div class="summary-number" id="acc-total-expense">0</div><div class="summary-label">总支出</div></div>
@@ -276,16 +274,14 @@
         </div>
     </div>
 
-    <!-- 保存提示 -->
     <div class="toast" id="toast">✅ 已保存</div>
 
     <script>
         // ========== 数据存储 ==========
-        const STORAGE_KEY = 'hospital_records';
+        const STORAGE_KEY = 'work_records';
         let data = { income: [], workload: [], account: [] };
         let storageAvailable = true;
 
-        // 检测 localStorage 是否可用
         function testStorage() {
             try {
                 const testKey = '__test__';
@@ -297,11 +293,10 @@
             }
         }
 
-        // 初始化数据
         function loadData() {
             if (!testStorage()) {
                 storageAvailable = false;
-                alert('⚠️ 浏览器存储不可用！\n\n数据将无法保存。\n请检查是否在无痕模式下，或更换浏览器。');
+                alert('⚠️ 浏览器存储不可用！\n\n请检查是否在无痕模式下，或更换浏览器。');
                 return;
             }
             try {
@@ -321,7 +316,6 @@
             if (!storageAvailable) return;
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                // 验证写入成功
                 const check = localStorage.getItem(STORAGE_KEY);
                 if (!check) {
                     storageAvailable = false;
@@ -332,7 +326,6 @@
             }
         }
 
-        // 显示保存提示
         function showToast(text) {
             const toast = document.getElementById('toast');
             toast.textContent = text;
@@ -340,18 +333,16 @@
             setTimeout(() => toast.classList.remove('show'), 1500);
         }
 
-        // 更新数据状态栏
         function updateDataStatus() {
             const total = data.income.length + data.workload.length + data.account.length;
             const el = document.getElementById('dataStatus');
             if (total === 0) {
                 el.textContent = '📭 暂无记录';
             } else {
-                el.textContent = `✅ 已保存 ${total} 条记录（创收${data.income.length} | 工作量${data.workload.length} | 记账${data.account.length}）`;
+                el.textContent = `✅ 已保存 ${total} 条记录（业务${data.income.length} | 工作量${data.workload.length} | 收支${data.account.length}）`;
             }
         }
 
-        // 页面关闭前保存
         window.addEventListener('beforeunload', function() {
             if (storageAvailable) {
                 try {
@@ -360,13 +351,11 @@
             }
         });
 
-        // ========== 日期工具 ==========
         function getToday() {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
-        // 初始化日期为空
         document.getElementById('inc-date').value = '';
         document.getElementById('work-date').value = '';
         document.getElementById('acc-date').value = '';
@@ -384,7 +373,7 @@
             });
         });
 
-        // ========== 创收 ==========
+        // ========== 业务记录 ==========
         function addIncome() {
             const date = document.getElementById('inc-date').value;
             const category = document.getElementById('inc-category').value;
@@ -439,7 +428,7 @@
                 return `<div class="list-item">
                     <div class="list-info">
                         <div class="list-date">${r.date} | ${r.category}</div>
-                        <div class="list-detail">${r.patient ? '病人: ' + r.patient : ''}</div>
+                        <div class="list-detail">${r.patient ? '对象: ' + r.patient : ''}</div>
                     </div>
                     <div class="list-amount">¥${r.amount.toFixed(2)}</div>
                     <button class="btn btn-danger btn-sm" onclick="deleteIncome(${idx})">删除</button>
@@ -508,7 +497,7 @@
             }).join('');
         }
 
-        // ========== 记账 ==========
+        // ========== 收支 ==========
         function addAccount() {
             const date = document.getElementById('acc-date').value;
             const type = document.getElementById('acc-type').value;
@@ -574,7 +563,7 @@
             }).join('');
         }
 
-        // ========== 统计（带日期范围） ==========
+        // ========== 统计 ==========
         function showStatistics() {
             const win = document.createElement('div');
             win.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:999;overflow-y:auto;padding:20px;';
@@ -594,7 +583,7 @@
                             <input type="date" id="stat-end" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
                         </div>
                         <div style="display:flex;align-items:flex-end;">
-                            <button onclick="renderStatistics()" style="background:#2196F3;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;">查询</button>
+                            <button onclick="renderStatistics()" style="background:#2E7D32;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;">查询</button>
                         </div>
                     </div>
                     <div id="stat-result"></div>
@@ -622,10 +611,9 @@
             const totalAccIn = fAcc.filter(r => r.type === '收入').reduce((s,r) => s + r.amount, 0);
             const totalAccOut = fAcc.filter(r => r.type === '支出').reduce((s,r) => s + r.amount, 0);
 
-            let html = `<div class="stat-total-box">💰 创收总额：¥${totalIncomeAmt.toFixed(2)}（${fIncome.length}条记录）</div>`;
+            let html = `<div class="stat-total-box">💰 业务总金额：¥${totalIncomeAmt.toFixed(2)}（${fIncome.length}条记录）</div>`;
 
-            // 创收项目
-            html += `<h3 style="border-left:4px solid #2196F3;padding-left:10px;margin:15px 0 10px;">💰 创收项目汇总</h3>`;
+            html += `<h3 style="border-left:4px solid #2E7D32;padding-left:10px;margin:15px 0 10px;">💼 业务项目汇总</h3>`;
             const catSum = {};
             fIncome.forEach(r => { catSum[r.category] = (catSum[r.category] || 0) + r.amount; });
             const cats = Object.keys(catSum).sort((a,b) => catSum[b] - catSum[a]);
@@ -638,8 +626,7 @@
                 html += `</table>`;
             } else { html += `<p style="text-align:center;color:#999;">暂无数据</p>`; }
 
-            // 记账
-            html += `<h3 style="border-left:4px solid #2196F3;padding-left:10px;margin:20px 0 10px;">📒 记账收支</h3>`;
+            html += `<h3 style="border-left:4px solid #2E7D32;padding-left:10px;margin:20px 0 10px;">📒 收支汇总</h3>`;
             if (fAcc.length > 0) {
                 html += `<table class="stat-table"><tr><th>收入</th><th>支出</th><th>结余</th></tr>
                     <tr><td class="right" style="color:#4CAF50;">+¥${totalAccIn.toFixed(2)}</td>
@@ -647,8 +634,7 @@
                     <td class="right">¥${(totalAccIn-totalAccOut).toFixed(2)}</td></tr></table>`;
             } else { html += `<p style="text-align:center;color:#999;">暂无数据</p>`; }
 
-            // 工作量
-            html += `<h3 style="border-left:4px solid #2196F3;padding-left:10px;margin:20px 0 10px;">📊 工作量汇总</h3>`;
+            html += `<h3 style="border-left:4px solid #2E7D32;padding-left:10px;margin:20px 0 10px;">📊 工作量汇总</h3>`;
             const workSum = {};
             fWork.forEach(r => { workSum[r.item] = (workSum[r.item] || 0) + r.qty; });
             const items = Object.keys(workSum);
@@ -663,19 +649,19 @@
 
         // ========== 导出/导入/备份 ==========
         function exportExcel() {
-            const incomeData = data.income.map(r => ({'日期':r.date,'项目':r.category,'金额':r.amount,'病人':r.patient||''}));
+            const incomeData = data.income.map(r => ({'日期':r.date,'项目':r.category,'金额':r.amount,'对象':r.patient||''}));
             const workloadData = data.workload.map(r => ({'日期':r.date,'项目':r.item,'数量':r.qty,'备注':r.note||''}));
             const accountData = data.account.map(r => ({'日期':r.date,'类型':r.type,'金额':r.amount,'备注':r.note||''}));
             const wb = XLSX.utils.book_new();
-            if (incomeData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeData), '创收记录');
+            if (incomeData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeData), '业务记录');
             if (workloadData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(workloadData), '工作量');
-            if (accountData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(accountData), '记账');
-            XLSX.writeFile(wb, `医院记录_${getToday()}.xlsx`);
+            if (accountData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(accountData), '收支');
+            XLSX.writeFile(wb, `工作记录_${getToday()}.xlsx`);
         }
 
         function exportBackup() {
             const blob = new Blob([JSON.stringify({version:1,exportTime:new Date().toISOString(),data}, null, 2)], {type:'application/json'});
-            saveAs(blob, `医院记录_备份_${getToday()}.json`);
+            saveAs(blob, `工作记录_备份_${getToday()}.json`);
         }
 
         function copyBackup() {
@@ -732,10 +718,10 @@
                     const wb = XLSX.read(e.target.result, {type:'array'});
                     wb.SheetNames.forEach(sheetName => {
                         const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
-                        if (sheetName === '创收记录') {
+                        if (sheetName === '业务记录') {
                             jsonData.forEach(row => {
                                 if (row['日期'] && row['金额']) {
-                                    data.income.push({date:String(row['日期']),category:row['项目']||'其他',amount:parseFloat(row['金额'])||0,patient:row['病人']||''});
+                                    data.income.push({date:String(row['日期']),category:row['项目']||'其他',amount:parseFloat(row['金额'])||0,patient:row['对象']||''});
                                 }
                             });
                         } else if (sheetName === '工作量') {
@@ -744,7 +730,7 @@
                                     data.workload.push({date:String(row['日期']),item:row['项目']||'其他',qty:parseInt(row['数量'])||0,note:row['备注']||''});
                                 }
                             });
-                        } else if (sheetName === '记账') {
+                        } else if (sheetName === '收支') {
                             jsonData.forEach(row => {
                                 if (row['日期'] && row['金额']) {
                                     data.account.push({date:String(row['日期']),type:row['类型']||'支出',amount:parseFloat(row['金额'])||0,note:row['备注']||''});
