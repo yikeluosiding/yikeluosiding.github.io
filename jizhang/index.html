@@ -173,6 +173,22 @@
             <input type="file" id="backupFile" accept=".json" style="display:none" onchange="importBackup(event)">
         </div>
 
+        <!-- 新增：按时间范围操作区域 -->
+        <div class="card" style="margin-bottom: 15px; border: 1px solid #2196F3;">
+            <h3 style="color: #2196F3;">⏱ 按时间范围操作</h3>
+            <div class="input-row">
+                <label>开始</label>
+                <input type="date" id="range-start">
+                <label style="width:30px; text-align:center;">至</label>
+                <input type="date" id="range-end">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-primary" onclick="exportExcelByRange()">📥 导出范围数据</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('importRangeFile').click()">📤 导入范围数据</button>
+                <input type="file" id="importRangeFile" accept=".xlsx,.xls" style="display:none" onchange="importExcelByRange(event)">
+            </div>
+        </div>
+
         <div class="tabs">
             <div class="tab active" data-tab="income">💰 收入</div>
             <div class="tab" data-tab="workload">📊 工作量</div>
@@ -649,7 +665,7 @@
             resultDiv.innerHTML = html;
         }
 
-        // ========== 导出/导入/备份 ==========
+        // ========== 导出/导入/备份 (全量) ==========
         function exportExcel() {
             const incomeData = data.income.map(r => ({'日期':r.date,'项目':r.category,'金额':r.amount,'备注':r.patient||''}));
             const workloadData = data.workload.map(r => ({'日期':r.date,'项目':r.item,'数量':r.qty,'备注':r.note||''}));
@@ -752,6 +768,121 @@
             event.target.value = '';
         }
 
+        // ========== 新增：按时间范围导出导入 ==========
+        function exportExcelByRange() {
+            const startDate = document.getElementById('range-start').value;
+            const endDate = document.getElementById('range-end').value;
+
+            if (!startDate || !endDate) {
+                alert('请选择开始日期和结束日期');
+                return;
+            }
+            if (startDate > endDate) {
+                alert('开始日期不能晚于结束日期');
+                return;
+            }
+
+            function inRange(date) {
+                return date >= startDate && date <= endDate;
+            }
+
+            const fIncome = data.income.filter(r => inRange(r.date));
+            const fWorkload = data.workload.filter(r => inRange(r.date));
+            const fAccount = data.account.filter(r => inRange(r.date));
+
+            if (fIncome.length === 0 && fWorkload.length === 0 && fAccount.length === 0) {
+                alert('该时间范围内没有数据');
+                return;
+            }
+
+            const incomeData = fIncome.map(r => ({'日期': r.date, '项目': r.category, '金额': r.amount, '备注': r.patient || ''}));
+            const workloadData = fWorkload.map(r => ({'日期': r.date, '项目': r.item, '数量': r.qty, '备注': r.note || ''}));
+            const accountData = fAccount.map(r => ({'日期': r.date, '类型': r.type, '金额': r.amount, '备注': r.note || ''}));
+
+            const wb = XLSX.utils.book_new();
+            if (incomeData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeData), '收入记录');
+            if (workloadData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(workloadData), '工作量');
+            if (accountData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(accountData), '记账');
+
+            XLSX.writeFile(wb, `工作记录_${startDate}_至_${endDate}.xlsx`);
+            showToast('✅ 范围数据已导出');
+        }
+
+        function importExcelByRange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const startDate = document.getElementById('range-start').value;
+            const endDate = document.getElementById('range-end').value;
+
+            if (!startDate || !endDate) {
+                alert('请先在上方选择开始日期和结束日期，再导入');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const wb = XLSX.read(e.target.result, {type: 'array'});
+                    let count = 0;
+
+                    function inRange(dateStr) {
+                        if (!dateStr) return false;
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return false;
+                        // 格式化为 YYYY-MM-DD 进行比较
+                        const yyyy = d.getFullYear();
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        const dateFormatted = `${yyyy}-${mm}-${dd}`;
+                        return dateFormatted >= startDate && dateFormatted <= endDate;
+                    }
+
+                    wb.SheetNames.forEach(sheetName => {
+                        const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+                        if (sheetName === '收入记录') {
+                            jsonData.forEach(row => {
+                                if (row['日期'] && row['金额'] && inRange(row['日期'])) {
+                                    data.income.push({date: String(row['日期']).substring(0, 10), category: row['项目'] || '其他', amount: parseFloat(row['金额']) || 0, patient: row['备注'] || ''});
+                                    count++;
+                                }
+                            });
+                        } else if (sheetName === '工作量') {
+                            jsonData.forEach(row => {
+                                if (row['日期'] && row['数量'] && inRange(row['日期'])) {
+                                    data.workload.push({date: String(row['日期']).substring(0, 10), item: row['项目'] || '其他', qty: parseInt(row['数量']) || 0, note: row['备注'] || ''});
+                                    count++;
+                                }
+                            });
+                        } else if (sheetName === '记账') {
+                            jsonData.forEach(row => {
+                                if (row['日期'] && row['金额'] && inRange(row['日期'])) {
+                                    data.account.push({date: String(row['日期']).substring(0, 10), type: row['类型'] || '支出', amount: parseFloat(row['金额']) || 0, note: row['备注'] || ''});
+                                    count++;
+                                }
+                            });
+                        }
+                    });
+
+                    if (count > 0) {
+                        saveData();
+                        renderIncome();
+                        renderWorkload();
+                        renderAccount();
+                        updateDataStatus();
+                        alert(`导入成功！本次导入了 ${count} 条该时间范围内的记录。`);
+                    } else {
+                        alert('该时间范围内没有找到可导入的记录。');
+                    }
+                } catch (err) {
+                    alert('导入失败：' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
         // ========== 启动 ==========
         loadData();
         renderIncome();
@@ -760,4 +891,4 @@
         updateDataStatus();
     </script>
 </body>
-</html>
+                    </html>
