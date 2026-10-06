@@ -173,7 +173,7 @@
             <input type="file" id="backupFile" accept=".json" style="display:none" onchange="importBackup(event)">
         </div>
 
-        <!-- 新增：按时间范围操作区域 -->
+        <!-- 按时间范围操作区域 -->
         <div class="card" style="margin-bottom: 15px; border: 1px solid #2196F3;">
             <h3 style="color: #2196F3;">⏱ 按时间范围操作</h3>
             <div class="input-row">
@@ -579,14 +579,26 @@
         }
 
         // ========== 统计 ==========
+        function closeStatistics() {
+            const modal = document.getElementById('statistics-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
         function showStatistics() {
+            // 如果已存在，先移除
+            closeStatistics();
+
             const win = document.createElement('div');
+            win.id = 'statistics-modal';
             win.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:999;overflow-y:auto;padding:20px;';
+            
             win.innerHTML = `
-                <div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;padding:20px;">
+                <div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;padding:20px; position:relative;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
                         <h2 style="font-size:20px;margin:0;">📊 统计报表</h2>
-                        <button onclick="this.closest('div[style]').remove()" style="background:#f44336;color:white;border:none;border-radius:6px;padding:8px 15px;font-size:14px;cursor:pointer;">关闭</button>
+                        <button onclick="closeStatistics()" style="background:#f44336;color:white;border:none;border-radius:6px;padding:8px 15px;font-size:14px;cursor:pointer;">关闭</button>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
                         <div style="flex:1;min-width:120px;">
@@ -602,6 +614,11 @@
                         </div>
                     </div>
                     <div id="stat-result"></div>
+                    
+                    <!-- 底部大按钮，方便手机操作 -->
+                    <div style="text-align:center; margin-top:25px; border-top:1px solid #eee; padding-top:15px;">
+                        <button onclick="closeStatistics()" style="background:#f44336;color:white;border:none;border-radius:8px;padding:12px 40px;font-size:16px;cursor:pointer;font-weight:bold; width:100%;">关闭界面</button>
+                    </div>
                 </div>`;
             document.body.appendChild(win);
             renderStatistics();
@@ -609,6 +626,8 @@
 
         function renderStatistics() {
             const resultDiv = document.getElementById('stat-result');
+            if (!resultDiv) return;
+            
             const startDate = document.getElementById('stat-start').value || '';
             const endDate = document.getElementById('stat-end').value || '';
 
@@ -665,11 +684,29 @@
             resultDiv.innerHTML = html;
         }
 
-        // ========== 导出/导入/备份 (全量) ==========
+        // ========== 导出/导入/备份 (全量，带总计) ==========
         function exportExcel() {
             const incomeData = data.income.map(r => ({'日期':r.date,'项目':r.category,'金额':r.amount,'备注':r.patient||''}));
+            if (incomeData.length > 0) {
+                const totalIncome = incomeData.reduce((s, r) => s + r.金额, 0);
+                incomeData.push({'日期': '总计', '项目': '', '金额': totalIncome, '备注': ''});
+            }
+
             const workloadData = data.workload.map(r => ({'日期':r.date,'项目':r.item,'数量':r.qty,'备注':r.note||''}));
+            if (workloadData.length > 0) {
+                const totalQty = workloadData.reduce((s, r) => s + r.数量, 0);
+                workloadData.push({'日期': '总计', '项目': '', '数量': totalQty, '备注': ''});
+            }
+
             const accountData = data.account.map(r => ({'日期':r.date,'类型':r.type,'金额':r.amount,'备注':r.note||''}));
+            if (accountData.length > 0) {
+                const totalIn = accountData.filter(r => r.类型 === '收入').reduce((s, r) => s + r.金额, 0);
+                const totalOut = accountData.filter(r => r.类型 === '支出').reduce((s, r) => s + r.金额, 0);
+                accountData.push({'日期': '总计', '类型': '收入', '金额': totalIn, '备注': ''});
+                accountData.push({'日期': '', '类型': '支出', '金额': totalOut, '备注': ''});
+                accountData.push({'日期': '', '类型': '结余', '金额': totalIn - totalOut, '备注': ''});
+            }
+
             const wb = XLSX.utils.book_new();
             if (incomeData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeData), '收入记录');
             if (workloadData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(workloadData), '工作量');
@@ -738,19 +775,19 @@
                         const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
                         if (sheetName === '收入记录') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['金额']) {
+                                if (row['日期'] && row['金额'] && row['日期'] !== '总计') {
                                     data.income.push({date:String(row['日期']),category:row['项目']||'其他',amount:parseFloat(row['金额'])||0,patient:row['备注']||''});
                                 }
                             });
                         } else if (sheetName === '工作量') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['数量']) {
+                                if (row['日期'] && row['数量'] && row['日期'] !== '总计') {
                                     data.workload.push({date:String(row['日期']),item:row['项目']||'其他',qty:parseInt(row['数量'])||0,note:row['备注']||''});
                                 }
                             });
                         } else if (sheetName === '记账') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['金额']) {
+                                if (row['日期'] && row['金额'] && row['日期'] !== '总计') {
                                     data.account.push({date:String(row['日期']),type:row['类型']||'支出',amount:parseFloat(row['金额'])||0,note:row['备注']||''});
                                 }
                             });
@@ -768,7 +805,7 @@
             event.target.value = '';
         }
 
-        // ========== 新增：按时间范围导出导入 ==========
+        // ========== 按时间范围导出导入 (带总计) ==========
         function exportExcelByRange() {
             const startDate = document.getElementById('range-start').value;
             const endDate = document.getElementById('range-end').value;
@@ -796,8 +833,25 @@
             }
 
             const incomeData = fIncome.map(r => ({'日期': r.date, '项目': r.category, '金额': r.amount, '备注': r.patient || ''}));
+            if (incomeData.length > 0) {
+                const totalIncome = incomeData.reduce((s, r) => s + r.金额, 0);
+                incomeData.push({'日期': '总计', '项目': '', '金额': totalIncome, '备注': ''});
+            }
+
             const workloadData = fWorkload.map(r => ({'日期': r.date, '项目': r.item, '数量': r.qty, '备注': r.note || ''}));
+            if (workloadData.length > 0) {
+                const totalQty = workloadData.reduce((s, r) => s + r.数量, 0);
+                workloadData.push({'日期': '总计', '项目': '', '数量': totalQty, '备注': ''});
+            }
+
             const accountData = fAccount.map(r => ({'日期': r.date, '类型': r.type, '金额': r.amount, '备注': r.note || ''}));
+            if (accountData.length > 0) {
+                const totalIn = accountData.filter(r => r.类型 === '收入').reduce((s, r) => s + r.金额, 0);
+                const totalOut = accountData.filter(r => r.类型 === '支出').reduce((s, r) => s + r.金额, 0);
+                accountData.push({'日期': '总计', '类型': '收入', '金额': totalIn, '备注': ''});
+                accountData.push({'日期': '', '类型': '支出', '金额': totalOut, '备注': ''});
+                accountData.push({'日期': '', '类型': '结余', '金额': totalIn - totalOut, '备注': ''});
+            }
 
             const wb = XLSX.utils.book_new();
             if (incomeData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeData), '收入记录');
@@ -831,7 +885,6 @@
                         if (!dateStr) return false;
                         const d = new Date(dateStr);
                         if (isNaN(d.getTime())) return false;
-                        // 格式化为 YYYY-MM-DD 进行比较
                         const yyyy = d.getFullYear();
                         const mm = String(d.getMonth() + 1).padStart(2, '0');
                         const dd = String(d.getDate()).padStart(2, '0');
@@ -843,21 +896,21 @@
                         const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
                         if (sheetName === '收入记录') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['金额'] && inRange(row['日期'])) {
+                                if (row['日期'] && row['金额'] && row['日期'] !== '总计' && inRange(row['日期'])) {
                                     data.income.push({date: String(row['日期']).substring(0, 10), category: row['项目'] || '其他', amount: parseFloat(row['金额']) || 0, patient: row['备注'] || ''});
                                     count++;
                                 }
                             });
                         } else if (sheetName === '工作量') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['数量'] && inRange(row['日期'])) {
+                                if (row['日期'] && row['数量'] && row['日期'] !== '总计' && inRange(row['日期'])) {
                                     data.workload.push({date: String(row['日期']).substring(0, 10), item: row['项目'] || '其他', qty: parseInt(row['数量']) || 0, note: row['备注'] || ''});
                                     count++;
                                 }
                             });
                         } else if (sheetName === '记账') {
                             jsonData.forEach(row => {
-                                if (row['日期'] && row['金额'] && inRange(row['日期'])) {
+                                if (row['日期'] && row['金额'] && row['日期'] !== '总计' && inRange(row['日期'])) {
                                     data.account.push({date: String(row['日期']).substring(0, 10), type: row['类型'] || '支出', amount: parseFloat(row['金额']) || 0, note: row['备注'] || ''});
                                     count++;
                                 }
